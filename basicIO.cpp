@@ -5,7 +5,8 @@
 #define STDIN 0
 #define STDOUT 1
 #define STDERR 2
-
+#define SYS_OPEN 2
+#define SYS_CLOSE 3
 
 basicIO io;
 
@@ -20,7 +21,6 @@ extern "C" long syscall3(long number, long arg1, long arg2, long arg3) {
         : "rcx", "r11", "memory");
     return ret;
 }
-
 
 static char inputBuffer[256];
 
@@ -135,4 +135,21 @@ void basicIO::errorint(int number) {
         }
     }
     syscall3(SYS_WRITE, STDERR, (long)buffer, i);
+}
+
+// New file operations
+long basicIO::open_file(const char* pathname, int flags, int mode) {
+    return syscall3(SYS_OPEN, (long)pathname, flags, mode);
+}
+
+long basicIO::read_file(int fd, char* buf, long count) {
+    return syscall3(SYS_READ, fd, (long)buf, count);
+}
+
+long basicIO::write_file(int fd, const char* buf, long count) {
+    return syscall3(SYS_WRITE, fd, (long)buf, count);
+}
+
+int basicIO::close_file(int fd) {
+    return syscall3(SYS_CLOSE, fd, 0, 0);
 }

@@ -6,62 +6,60 @@
 // Enum to represent student branches
 enum Branch { CSE, ECE };
 
+// Enum for the specific mark categories
+enum MarkComponent { CLASS_ASSESSMENT, QUIZ, MIDSEM, ENDSEM, NUM_COMPONENTS };
+
 class Student {
 private:
     MyString rollNumber;
     MyString name;
     Branch branch;
-    float* componentMarks;
-    int numComponents;
+    float componentMarks[NUM_COMPONENTS]; // Use the enum for a fixed-size array
 
 public:
-    // Constructors and a virtual destructor (essential for polymorphism)
+    // Constructors and a virtual destructor
     Student();
-    Student(const char* roll, const char* studentName, Branch studentBranch, int totalComponents);
-    Student(const Student& other); // Copy Constructor
-    virtual ~Student(); // Virtual destructor
+    // Constructor now doesn't need totalComponents
+    Student(const char* roll, const char* studentName, Branch studentBranch); 
+    Student(const Student& other);
+    virtual ~Student();
 
     // Operator overloading for assignment
     Student& operator=(const Student& other);
 
     // --- Core Functionality ---
-    
-    // Pure virtual function to get the student's level (BTech, MTech, etc.)
-    // This makes the Student class abstract.
     virtual MyString getLevel() const = 0;
-
-    // Calculates the total marks from all components (fulfills Question 3)
     float calculateTotalMarks() const;
-    
-    // Generates a string representation of the student's details
     MyString toString() const;
 
     // --- Getters and Setters ---
     const MyString& getRollNumber() const;
     const MyString& getName() const;
+    Branch getBranch() const;
     float getComponentMark(int index) const;
-    int getNumComponents() const;
-
+    // getNumComponents is no longer needed as it's fixed
+    
     void setComponentMark(int index, float mark);
 };
 
-// --- Derived Classes for Specific Student Levels ---
+// --- Derived Classes ---
+// (Constructors updated)
 
 class BTechStudent : public Student {
 public:
-    BTechStudent(const char* roll, const char* name, Branch branch, int numComponents);
+    BTechStudent(const char* roll, const char* name, Branch branch);
     virtual MyString getLevel() const override;
 };
 
 class MTechStudent : public Student {
 public:
-    MTechStudent(const char* roll, const char* name, Branch branch, int numComponents);
+    MTechStudent(const char* roll, const char* name, Branch branch);
     virtual MyString getLevel() const override;
 };
 
 class PhDStudent : public Student {
 public:
-    PhDStudent(const char* roll, const char* name, Branch branch, int numComponents);
+    PhDStudent(const char* roll, const char* name, Branch branch);
     virtual MyString getLevel() const override;
 };
 

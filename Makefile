@@ -20,10 +20,12 @@ $(TARGET): $(OBJS)
 main.o: main.cpp StudentDatabase.h Exceptions.h basicIO.h
 	$(CXX) $(CXXFLAGS) -c main.cpp
 
-StudentDatabase.o: StudentDatabase.cpp StudentDatabase.h Student.h Trie.h
+# Added basicIO.h as a dependency
+StudentDatabase.o: StudentDatabase.cpp StudentDatabase.h Student.h Trie.h basicIO.h
 	$(CXX) $(CXXFLAGS) -c StudentDatabase.cpp
 
-Student.o: Student.cpp Student.h MyString.h
+# Added basicIO.h as a dependency
+Student.o: Student.cpp Student.h MyString.h basicIO.h
 	$(CXX) $(CXXFLAGS) -c Student.cpp
 
 Trie.o: Trie.cpp Trie.h MyString.h
