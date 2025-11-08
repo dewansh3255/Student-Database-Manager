@@ -22,7 +22,7 @@ The system tracks the following data for each student:
 | **Full Name** | Student's complete name |
 | **Level** | BTech, MTech, or PhD |
 | **Branch** | CSE or ECE |
-| **Marks** | Class Assessment, Quiz, Midsem, Endsem |
+| **Marks** | Class Assessment, Quiz, Mid-Sem, End-Sem |
 
 ### Available Operations
 1. **Add Student**: Create new student records with validation
@@ -86,6 +86,12 @@ make clean
 
 ## 🛠️ Technical Implementation
 
+### Recent Improvements
+- **Unified Terminology**: Standardized mark component naming to "Mid-Sem" and "End-Sem" across all modules for consistency
+- **Enhanced CSV Parsing**: Improved file loading logic to correctly handle hyphenated mark component names
+- **Improved Display Formatting**: Enhanced student details display with proper float formatting using `floatToMyString()` helper function
+- **Robust Data Persistence**: Fixed synchronization between in-memory representation and CSV file format
+
 ### Core Concepts Demonstrated
 
 #### 1. **Object-Oriented Design**
@@ -125,6 +131,7 @@ Complete exception hierarchy inheriting from `InputException`:
 - Direct Linux syscall usage for all I/O operations
 - Implementation of file reading/writing without standard libraries
 - Console interaction through system-level calls
+- Custom float-to-string conversion without standard library functions
 
 ### String Management
 The `MyString` class provides:
@@ -153,9 +160,18 @@ The `basicIO` class handles:
 Student records are stored in CSV format with the following structure:
 
 ```csv
-RollNumber,FullName,Level,Branch,ClassAssessment,Quiz,Midsem,Endsem
-B21CS001,John Doe,BTech,CSE,85,90,88,92
-M22EC002,Jane Smith,MTech,ECE,78,82,80,85
+Roll Number: B21CS001
+Name: John Doe
+Level: BTech
+Branch: CSE
+Marks:
+  - Class Assessment: 25.00
+  - Quiz: 25.00
+  - Mid-Sem: 25.00
+  - End-Sem: 25.00
+Total: 100.00
+Grade: A
+-----------------
 ```
 
 ## ⚠️ Input Validation
