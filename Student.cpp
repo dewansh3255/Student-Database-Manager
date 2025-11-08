@@ -1,28 +1,20 @@
 #include "Student.h"
 #include "basicIO.h" 
 
-// --- NEW HELPER FUNCTION ---
-// Converts a string representation of a float into an actual float.
 float stringToFloat(const MyString& s) {
     const char* cstr = s.c_str();
     if (!cstr) return 0.0f;
-
     float result = 0.0f;
     int i = 0;
     bool isNegative = false;
-
     if (cstr[i] == '-') {
         isNegative = true;
         i++;
     }
-
-    // Parse integer part
     while (cstr[i] >= '0' && cstr[i] <= '9') {
         result = result * 10.0f + (cstr[i] - '0');
         i++;
     }
-
-    // Parse fractional part
     if (cstr[i] == '.') {
         i++;
         float power = 0.1f;
@@ -32,14 +24,11 @@ float stringToFloat(const MyString& s) {
             i++;
         }
     }
-
     return isNegative ? -result : result;
 }
 
-
-// Helper to convert float to MyString (already exists, no changes needed here)
 MyString floatToMyString(float f) {
-    if (f == 0.0f) return MyString("0.0");
+    if (f == 0.0f) return MyString("0.00");
     char buffer[32];
     int pos = 0;
     if (f < 0) {
@@ -62,44 +51,48 @@ MyString floatToMyString(float f) {
         }
     }
     buffer[pos++] = '.';
-    fractionalPart *= 100;
-    int fractionalInt = (int)fractionalPart;
-    if (fractionalInt < 10) buffer[pos++] = '0';
-    char temp[3];
-    int i = 0;
-    if (fractionalInt == 0) {
-        temp[i++] = '0';
-    } else {
-         while (fractionalInt > 0) {
-            temp[i++] = (fractionalInt % 10) + '0';
-            fractionalInt /= 10;
-        }
+    
+    fractionalPart = fractionalPart * 100.0f;
+    int fractionalInt = (int)(fractionalPart + 0.5f);
+    
+    if (fractionalInt >= 100) {
+         integerPart++;
+         fractionalInt = 0; 
     }
-    for (int j = i - 1; j >= 0; --j) buffer[pos++] = temp[j];
+
+    if (fractionalInt < 10) {
+        buffer[pos++] = '0';
+    }
+
+    if (fractionalInt == 0) {
+        buffer[pos++] = '0';
+    } else if (fractionalInt >= 10) {
+        buffer[pos++] = (fractionalInt / 10) + '0';
+        buffer[pos++] = (fractionalInt % 10) + '0';
+    } else {
+        buffer[pos++] = fractionalInt + '0';
+    }
+
     buffer[pos] = '\0';
     return MyString(buffer);
 }
-
-// Helper to get the name of the mark component (unchanged)
 const char* getComponentName(int index) {
     switch (index) {
         case CLASS_ASSESSMENT: return "Class Assessment";
         case QUIZ: return "Quiz";
-        case MIDSEM: return "Midsem";
-        case ENDSEM: return "Endsem";
+        case MIDSEM: return "Mid-Sem";
+        case ENDSEM: return "End-Sem";
         default: return "Unknown";
     }
 }
 
-// The rest of Student.cpp is unchanged
-// --- Base Student Class Implementation ---
 Student::Student() : rollNumber(""), name(""), branch(CSE) {
     for (int i = 0; i < NUM_COMPONENTS; ++i) componentMarks[i] = 0.0f;
 }
 Student::Student(const char* roll, const char* studentName, Branch studentBranch)
     : rollNumber(roll), name(studentName), branch(studentBranch) {
     for (int i = 0; i < NUM_COMPONENTS; ++i) {
-        componentMarks[i] = 0.0f; // Initialize marks to 0
+        componentMarks[i] = 0.0f;
     }
 }
 Student::Student(const Student& other)
@@ -126,6 +119,7 @@ float Student::calculateTotalMarks() const {
     }
     return total;
 }
+
 MyString Student::toString() const {
     MyString details("Roll Number: ");
     details.concat(rollNumber);
@@ -145,11 +139,33 @@ MyString Student::toString() const {
     }
     details.concat("Total: ");
     details.concat(floatToMyString(calculateTotalMarks()));
+    details.concat("\nGrade: ");
+    char gradeStr[2];
+    gradeStr[0] = getGrade();
+    gradeStr[1] = '\0';
+    details.concat(gradeStr);
     details.concat("\n-----------------\n");
     return details;
 }
+
 const MyString& Student::getRollNumber() const { return rollNumber; }
 const MyString& Student::getName() const { return name; }
+
+char Student::getGrade() const {
+    float total = calculateTotalMarks();
+    if (total >= 90.0) {
+        return 'A';
+    } else if (total >= 80.0) {
+        return 'B';
+    } else if (total >= 70.0) {
+        return 'C';
+    } else if (total >= 60.0) {
+        return 'D';
+    } else {
+        return 'F';
+    }
+}
+
 Branch Student::getBranch() const { return branch; }
 float Student::getComponentMark(int index) const {
     if (index >= 0 && index < NUM_COMPONENTS) {
@@ -164,10 +180,16 @@ void Student::setComponentMark(int index, float mark) {
 }
 BTechStudent::BTechStudent(const char* roll, const char* name, Branch branch)
     : Student(roll, name, branch) {}
-MyString BTechStudent::getLevel() const { return MyString("BTech"); }
+MyString BTechStudent::getLevel() const { 
+    return MyString("BTech"); 
+}
 MTechStudent::MTechStudent(const char* roll, const char* name, Branch branch)
     : Student(roll, name, branch) {}
-MyString MTechStudent::getLevel() const { return MyString("MTech"); }
+MyString MTechStudent::getLevel() const { 
+    return MyString("MTech"); 
+}
 PhDStudent::PhDStudent(const char* roll, const char* name, Branch branch)
     : Student(roll, name, branch) {}
-MyString PhDStudent::getLevel() const { return MyString("PhD"); }
+MyString PhDStudent::getLevel() const { 
+    return MyString("PhD"); 
+}

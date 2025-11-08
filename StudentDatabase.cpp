@@ -1,16 +1,27 @@
 #include "StudentDatabase.h"
-#include "basicIO.h" 
+#include "basicIO.h"
+#include "MyString.h"
+#include "Trie.h"
 
-// --- FIX IS HERE ---
-// Forward declarations for the helper functions defined in Student.cpp
+MyString floatToMyString(float f);
 float stringToFloat(const MyString& s);
-MyString floatToMyString(float f); // This line fixes the error
+void displayStudentDetails(const Student* s);
 
-// Constructor and Destructor (unchanged)
-StudentDatabase::StudentDatabase(const char* db_filename) : count(0), capacity(10), filename(db_filename) {
-    studentList = new Student*[capacity];
+const int INITIAL_CAPACITY = 10;
+const int FILE_BUFFER_SIZE = 4096;
+const int MAX_LINES = 500;
+const int MAX_LINE_PARTS = 2;
+
+
+// --- Constructor & Destructor ---
+StudentDatabase::StudentDatabase(const char* db_filename) 
+    : studentList(new Student*[INITIAL_CAPACITY]), 
+      count(0), 
+      capacity(INITIAL_CAPACITY), 
+      filename(db_filename) {
     loadFromFile();
 }
+
 StudentDatabase::~StudentDatabase() {
     for (int i = 0; i < count; ++i) {
         delete studentList[i];
@@ -18,106 +29,243 @@ StudentDatabase::~StudentDatabase() {
     delete[] studentList;
 }
 
-// --- saveToFile (Correctly saves marks) ---
-void StudentDatabase::saveToFile() const {
-    long fd = io.open_file(filename, 0101, 0644); // O_WRONLY | O_CREAT
+// --- Memory Management ---
+void StudentDatabase::resize() {
+    capacity *= 2;
+    Student** newList = new Student*[capacity];
+    for (int i = 0; i < count; ++i) {
+        newList[i] = studentList[i];
+    }
+    delete[] studentList;
+    studentList = newList;
+}
+
+// --- Operator Overloading ---
+void StudentDatabase::operator+=(Student* newStudent) {
+    if (count == capacity) {
+        resize();
+    }
+    studentList[count] = newStudent;
+    count++;
+}
+
+Student* StudentDatabase::operator()(const MyString& rollNumber) {
+    for (int i = 0; i < count; ++i) {
+        if (studentList[i]->getRollNumber() == rollNumber) {
+            return studentList[i];
+        }
+    }
+    return nullptr;
+}
+
+// --- Utility Functions ---
+void StudentDatabase::displayAll() const {
+    if (count == 0) {
+        io.outputstring("Database is empty.\n");
+        return;
+    }
+    for (int i = 0; i < count; ++i) {
+        displayStudentDetails(studentList[i]);
+    }
+}
+
+int StudentDatabase::getCount() const { return count; }
+Student* StudentDatabase::getStudent(int index) const {
+    if (index >= 0 && index < count) {
+        return studentList[index];
+    }
+    return nullptr;
+}
+
+void StudentDatabase::swap(int index1, int index2) {
+    Student* temp = studentList[index1];
+    studentList[index1] = studentList[index2];
+    studentList[index2] = temp;
+}
+
+// --- File Operations ---
+void StudentDatabase::loadFromFile() {
+    long fd = io.open_file(filename, 0, 0);
     if (fd < 0) {
-        io.errorstring("Error: Could not open or create the database file for writing.\n");
+        io.errorstring("No existing database file found. A new one will be created on save.\n");
+        return;
+    }
+
+    char readBuffer[FILE_BUFFER_SIZE + 1];
+    MyString content;
+    long bytesRead = 0;
+
+    do {
+        bytesRead = io.read_file(fd, readBuffer, FILE_BUFFER_SIZE);
+        if (bytesRead > 0) {
+            readBuffer[bytesRead] = '\0';
+            content.concat(MyString(readBuffer));
+        }
+    } while (bytesRead > 0);
+
+    io.close_file(fd);
+
+    if (content.size() == 0) {
+        return;
+    }
+
+    MyString* lines = new MyString[MAX_LINES];
+    int numLines = 0;
+    
+    numLines = content.split("\n", lines); 
+
+    Student* currentStudent = nullptr;
+    MyString roll, name, level, branchStr;
+    Branch branch = CSE;
+
+    for (int i = 0; i < numLines; ++i) {
+        MyString line = lines[i];
+        line.trim();
+
+        if (line.size() == 0) continue;
+
+        MyString* parts = new MyString[MAX_LINE_PARTS];
+        
+        int numParts = line.split(":", parts); 
+
+        if (numParts == 2) {
+            parts[1].trim(); 
+
+            if (parts[0].find("Roll Number") != -1) {
+                roll = parts[1];
+            } else if (parts[0].find("Name") != -1) {
+                name = parts[1];
+            } else if (parts[0].find("Level") != -1) {
+                level = parts[1];
+            } else if (parts[0].find("Branch") != -1) {
+                branchStr = parts[1];
+            
+            // --- FIX IS HERE ---
+            } else if (parts[0].find("Class Assessment") != -1) {
+                if (currentStudent) currentStudent->setComponentMark(CLASS_ASSESSMENT, stringToFloat(parts[1]));
+            } else if (parts[0].find("Quiz") != -1) {
+                if (currentStudent) currentStudent->setComponentMark(QUIZ, stringToFloat(parts[1]));
+            } else if (parts[0].find("Mid-Sem") != -1) { // UNIFIED
+                if (currentStudent) currentStudent->setComponentMark(MIDSEM, stringToFloat(parts[1]));
+            } else if (parts[0].find("End-Sem") != -1) { // UNIFIED
+                if (currentStudent) currentStudent->setComponentMark(ENDSEM, stringToFloat(parts[1]));
+            }
+            // --- END FIX ---
+        }
+
+        if (line.find("-----------------") != -1) {
+            if (roll.size() > 0) {
+                branch = (branchStr == "ECE") ? ECE : CSE;
+
+                if (level == "BTech") currentStudent = new BTechStudent(roll.c_str(), name.c_str(), branch);
+                else if (level == "MTech") currentStudent = new MTechStudent(roll.c_str(), name.c_str(), branch);
+                else if (level == "PhD") currentStudent = new PhDStudent(roll.c_str(), name.c_str(), branch);
+                
+                if (currentStudent) {
+                    *this += currentStudent;
+                }
+            }
+            currentStudent = nullptr;
+            roll.clear(); name.clear(); level.clear(); branchStr.clear();
+        }
+        delete[] parts;
+    }
+    delete[] lines;
+}
+
+
+void StudentDatabase::saveToFile() const {
+    long fd = io.open_file(filename, 66, 0644);
+    if (fd < 0) {
+        io.errorstring("Error: Could not open file for writing.\n");
         return;
     }
 
     for (int i = 0; i < count; ++i) {
-        Student* s = studentList[i];
-        MyString line(s->getRollNumber());
-        line.concat(",");
-        line.concat(s->getName());
-        line.concat(",");
-        line.concat(s->getLevel());
-        line.concat(",");
-        line.concat(s->getBranch() == CSE ? "CSE" : "ECE");
-
-        // Append all the marks to the line
-        for (int j = 0; j < NUM_COMPONENTS; ++j) {
-            line.concat(",");
-            line.concat(floatToMyString(s->getComponentMark(j)));
-        }
-        
-        line.concat("\n");
-        io.write_file(fd, line.c_str(), line.size());
+        MyString studentData = studentList[i]->toString();
+        io.write_file(fd, studentData.c_str(), studentData.size());
     }
 
     io.close_file(fd);
     io.outputstring("Data successfully saved to file.\n");
 }
 
-// --- loadFromFile (Correctly loads marks) ---
-void StudentDatabase::loadFromFile() {
-    long fd = io.open_file(filename, 0, 0); // O_RDONLY = 0
-    if (fd < 0) return;
 
-    // Clear existing students to prevent duplicates on load
-    for(int i = 0; i < count; ++i) delete studentList[i];
-    count = 0;
+// --- Sorting Functions  ---
 
-    char buffer[2048];
-    long bytesRead = io.read_file(fd, buffer, 2047);
-    io.close_file(fd);
+void StudentDatabase::sortByName() {
+    if (count == 0) return;
 
-    if (bytesRead <= 0) return;
-    buffer[bytesRead] = '\0';
-    
-    MyString content(buffer);
-    MyString* lines = nullptr;
-    int numLines = content.split("\n", lines);
+    Trie nameTrie;
+    for (int i = 0; i < count; i++) {
+        nameTrie.insert(studentList[i]->getName());
+    }
 
-    for (int i = 0; i < numLines; ++i) {
-        if(lines[i].size() == 0) continue; // Skip empty lines
+    int sortedNameCount = 0;
+    MyString* sortedNames = nameTrie.getAllNamesSorted(sortedNameCount);
 
-        MyString* parts = nullptr;
-        int numParts = lines[i].split(",", parts);
+    Student** sortedStudentList = new Student*[capacity];
+    int sortedListIndex = 0;
 
-        // We now expect 4 details + 4 marks = 8 parts
-        if (numParts >= 4 + NUM_COMPONENTS) {
-            MyString roll(parts[0]);
-            MyString name(parts[1]);
-            MyString levelStr(parts[2]);
-            MyString branchStr(parts[3]);
-            Branch branch = (branchStr == "CSE") ? CSE : ECE;
+    for (int i = 0; i < sortedNameCount; i++) {
+        MyString sortedNameNoSpace = sortedNames[i];
+        
+        for (int j = 0; j < count; j++) {
             
-            Student* newStudent = nullptr;
-            if (levelStr == "BTech") {
-                newStudent = new BTechStudent(roll.c_str(), name.c_str(), branch);
-            } else if (levelStr == "MTech") {
-                newStudent = new MTechStudent(roll.c_str(), name.c_str(), branch);
-            } else {
-                newStudent = new PhDStudent(roll.c_str(), name.c_str(), branch);
+            MyString studentNameLower = studentList[j]->getName();
+            studentNameLower.toLowercase();
+            studentNameLower.trim();
+
+            MyString studentNameNoSpace;
+            const char* cstr = studentNameLower.c_str();
+            for (int k = 0; k < studentNameLower.size(); k++) {
+                if (cstr[k] >= 'a' && cstr[k] <= 'z') {
+                    char temp[2] = {cstr[k], '\0'};
+                    studentNameNoSpace.concat(MyString(temp));
+                }
             }
 
-            if (newStudent) {
-                // Load the marks from the file
-                for (int j = 0; j < NUM_COMPONENTS; ++j) {
-                    float mark = stringToFloat(parts[4 + j]);
-                    newStudent->setComponentMark(j, mark);
+            if (studentNameNoSpace == sortedNameNoSpace) {
+                if (sortedListIndex < capacity) {
+                    sortedStudentList[sortedListIndex] = studentList[j];
+                    sortedListIndex++;
                 }
-                (*this) += newStudent;
+                break; 
             }
         }
-        delete[] parts;
     }
-    delete[] lines;
 
-    // Automatically sort by roll number after loading
-    this->sortByRollNumber();
+    if (sortedListIndex != count) {
+        io.errorstring("Error: Name sort failed. Mismatch in student count. Aborting sort.\n");
+        delete[] sortedStudentList;
+        delete[] sortedNames;
+        return;
+    }
+
+    delete[] studentList;
+    studentList = sortedStudentList;
+    delete[] sortedNames;
+
+    io.outputstring("Database sorted by Name.\n");
 }
 
-// ... (The rest of StudentDatabase.cpp is unchanged) ...
-void StudentDatabase::resize() { capacity *= 2; Student** newList = new Student*[capacity]; for (int i = 0; i < count; ++i) newList[i] = studentList[i]; delete[] studentList; studentList = newList; }
-void StudentDatabase::operator+=(Student* newStudent) { if (count == capacity) resize(); studentList[count++] = newStudent; }
-Student* StudentDatabase::operator()(const MyString& rollNumber) { for (int i = 0; i < count; ++i) if (studentList[i]->getRollNumber() == rollNumber) return studentList[i]; return nullptr; }
-void StudentDatabase::displayAll() const { if (count == 0) { io.outputstring("The student database is empty.\n"); return; } for (int i = 0; i < count; ++i) io.outputstring(studentList[i]->toString().c_str()); }
-int StudentDatabase::getCount() const { return count; }
-Student* StudentDatabase::getStudent(int index) const { if (index >= 0 && index < count) return studentList[index]; return nullptr; }
-void StudentDatabase::swap(int i, int j) { Student* temp = studentList[i]; studentList[i] = studentList[j]; studentList[j] = temp; }
-void StudentDatabase::sortByRollNumber() { for (int i = 0; i < count - 1; ++i) for (int j = 0; j < count - i - 1; ++j) if (studentList[j+1]->getRollNumber() < studentList[j]->getRollNumber()) swap(j, j + 1); }
-void StudentDatabase::sortByTotalMarks() { for (int i = 0; i < count - 1; ++i) for (int j = 0; j < count - i - 1; ++j) if (studentList[j]->calculateTotalMarks() < studentList[j+1]->calculateTotalMarks()) swap(j, j + 1); }
-void StudentDatabase::sortByName() { Trie nameTrie; for (int i = 0; i < count; ++i) nameTrie.insert(studentList[i]->getName()); int sortedCount = 0; MyString* sortedNames = nameTrie.getAllNamesSorted(sortedCount); Student** sortedStudentList = new Student*[count]; for (int i = 0; i < sortedCount; ++i) for (int j = 0; j < count; ++j) if (studentList[j] != nullptr && studentList[j]->getName() == sortedNames[i]) { sortedStudentList[i] = studentList[j]; studentList[j] = nullptr; break; } delete[] studentList; studentList = sortedStudentList; delete[] sortedNames; }
+
+void StudentDatabase::sortByRollNumber() {
+    for (int i = 0; i < count - 1; ++i) {
+        for (int j = 0; j < count - i - 1; ++j) {
+            if (studentList[j+1]->getRollNumber() < studentList[j]->getRollNumber()) {
+                swap(j, j + 1);
+            }
+        }
+    }
+}
+
+void StudentDatabase::sortByTotalMarks() {
+    for (int i = 0; i < count - 1; ++i) {
+        for (int j = 0; j < count - i - 1; ++j) {
+            if (studentList[j]->calculateTotalMarks() < studentList[j+1]->calculateTotalMarks()) {
+                swap(j, j + 1);
+            }
+        }
+    }
+}

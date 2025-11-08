@@ -67,11 +67,12 @@ MyString::~MyString() {
 
 // ------------------ assignment ------------------
 MyString& MyString::operator=(const MyString& other) {
-    if (this == &other) return *this;
-    delete[] data;
-    length = other.length;
-    data = new char[length + 1];
-    copyChars(data, other.data);
+    if (this != &other) { // Add this check
+        delete[] data;
+        length = other.length;
+        data = new char[length + 1];
+        copyChars(data, other.data);
+    }
     return *this;
 }
 

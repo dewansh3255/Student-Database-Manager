@@ -3,6 +3,11 @@
 
 #include "MyString.h"
 
+// --- Global Helper Prototypes ---
+float stringToFloat(const MyString& s);
+MyString floatToMyString(float f);
+// --- End Helper Prototypes ---
+
 // Enum to represent student branches
 enum Branch { CSE, ECE };
 
@@ -14,12 +19,11 @@ private:
     MyString rollNumber;
     MyString name;
     Branch branch;
-    float componentMarks[NUM_COMPONENTS]; // Use the enum for a fixed-size array
+    float componentMarks[NUM_COMPONENTS];
 
 public:
     // Constructors and a virtual destructor
     Student();
-    // Constructor now doesn't need totalComponents
     Student(const char* roll, const char* studentName, Branch studentBranch); 
     Student(const Student& other);
     virtual ~Student();
@@ -37,13 +41,11 @@ public:
     const MyString& getName() const;
     Branch getBranch() const;
     float getComponentMark(int index) const;
-    // getNumComponents is no longer needed as it's fixed
-    
+    char getGrade() const;    
     void setComponentMark(int index, float mark);
 };
 
 // --- Derived Classes ---
-// (Constructors updated)
 
 class BTechStudent : public Student {
 public:
